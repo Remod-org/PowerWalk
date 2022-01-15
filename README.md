@@ -4,8 +4,10 @@ Allow players to climb power poles and walk the lines
 ## Commands
 
   -- `/pwalk show` -- Show the location of all powerlines
+
   -- `/pwalk XX tp` -- Teleport to the start of powerline XX
-  -- `/pwalk XX -- Spawn ladders and walking platform for powerline XX, starting with the closest point in that line and extending up in one direction
+
+  -- `/pwalk XX` -- Spawn ladders and walking platform for powerline XX, starting with the closest point in that line and extending up in one direction
 
 ## Permissions
 
