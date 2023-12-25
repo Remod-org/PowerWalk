@@ -1,27 +1,29 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core;
 using System;
-using System.Reflection;
+//using System.Reflection;
 using Rust;
 using Network;
 
 namespace Oxide.Plugins
 {
-    [Info("PowerWalk", "RFC1920", "1.0.1")]
+    [Info("PowerWalk", "RFC1920", "1.0.2")]
     [Description("Give collider to power lines to allow landing, etc.")]
     internal class PowerWalk : CovalencePlugin
     {
         public Dictionary<string, PowerLine> powerlines = new Dictionary<string, PowerLine>();
-        private readonly FieldInfo meshLookupField = typeof(MeshColliderLookup).GetField("meshLookup", BindingFlags.Instance | BindingFlags.NonPublic);
+        public Dictionary<int, string> idToLine = new Dictionary<int, string>();
+        //private readonly FieldInfo meshLookupField = typeof(MeshColliderLookup).GetField("meshLookup", BindingFlags.Instance | BindingFlags.NonPublic);
         private ConfigData configData;
         public static PowerWalk Instance;
         private const string permUse = "powerwalk.use";
 
         public class PowerLine
         {
+            public List<int> id;
             public List<Vector3> points = new List<Vector3>();
             public List<PowerLineWireSpan> spans = new List<PowerLineWireSpan>();
         }
@@ -90,7 +92,7 @@ namespace Oxide.Plugins
                 int i = 0;
                 foreach (Vector3 point in powerlines[chosenLine].points)
                 {
-                    player?.SendConsoleCommand("ddraw.text", configData.Options.ShowAllTextTime, Color.green, point + new Vector3(0, 1.5f, 0), $"<size=20>{i.ToString()}</size>");
+                    player?.SendConsoleCommand("ddraw.text", configData.Options.ShowAllTextTime, Color.green, point + new Vector3(0, 1.5f, 0), $"<size=20>{i}</size>");
                     i++;
                 }
             }
@@ -115,6 +117,11 @@ namespace Oxide.Plugins
                 {
                     UnityEngine.Object.DestroyImmediate(go);
                 }
+            }
+            else if (args.Length == 0)
+            {
+                PowerWalker pw = player.gameObject.AddComponent<PowerWalker>();
+                pw.SetNearestLine();
             }
         }
 
@@ -148,19 +155,20 @@ namespace Oxide.Plugins
             int x = 0;
             foreach (PowerLineWire pwire in UnityEngine.Object.FindObjectsOfType<PowerLineWire>())
             {
-                //Puts("Found a powerlinewire");
-                string nom = $"Powerline {x.ToString()}";
+                //DoLog("Found a powerlinewire");
+                string nom = $"Powerline {x}";
                 powerlines.Add(nom, new PowerLine());
                 foreach (Transform pole in pwire.poles)
                 {
-                    //Puts($"-- Found a power pole at {pole.transform.position.ToString()}");
+                    //DoLog($"-- Found a power pole at {pole.transform.position.ToString()}");
                     powerlines[nom].points.Add(pole.transform.position);
                 }
 
                 powerlines[nom].spans = pwire.spans;
+                idToLine.Add(x, nom);
                 //foreach (PowerLineWireSpan span in pwire.spans)
                 //{
-                //    Puts($"-- Found a wire span running from {span.start.transform.position.ToString()} to {span.end.transform.position.ToString()}.  It is {span.WireLength.ToString()}m long.");
+                //    DoLog($"-- Found a wire span running from {span.start.transform.position.ToString()} to {span.end.transform.position.ToString()}.  It is {span.WireLength.ToString()}m long.");
                 //}
                 x++;
             }
@@ -182,7 +190,7 @@ namespace Oxide.Plugins
         #region config
         protected override void LoadDefaultConfig()
         {
-            Puts("Creating new config file.");
+            DoLog("Creating new config file.");
             ConfigData config = new ConfigData
             {
                 Options = new Options
@@ -262,7 +270,7 @@ namespace Oxide.Plugins
                     spans = Instance.powerlines[chosenLine].spans;
                     if (Vector3.Distance(player.transform.position, nearPoint) > 20f)
                     {
-                        //Instance.Puts("Finding new nearest point");
+                        //Instance.DoLog("Finding new nearest point");
                         nearPt = FindNearestPoint();
                         if (nearPt > -1)
                         {
@@ -273,8 +281,8 @@ namespace Oxide.Plugins
                 if (nearPoint != lastPoint)
                 {
                     lastPoint = nearPoint;
-                    Instance.Message(player.IPlayer, $"Near point {nearPt.ToString()} at {nearPoint.ToString()}");
-                    player.SendConsoleCommand("ddraw.text", 15, Color.yellow, nearPoint, $"<size=20>Point {nearPt.ToString()}</size>");
+                    Instance.Message(player.IPlayer, $"Near point {nearPt} at {nearPoint}");
+                    player.SendConsoleCommand("ddraw.text", 15, Color.yellow, nearPoint, $"<size=20>Point {nearPt}</size>");
 
                     KillPlatforms();
                     KillLadders();
@@ -285,6 +293,39 @@ namespace Oxide.Plugins
                     SpawnLadders();
                     SpawnPlatforms();
                 }
+            }
+
+            public void SetNearestLine()
+            {
+                float lowMag = 99999;
+                string linechoice = chosenLine;
+                foreach (KeyValuePair<string, PowerLine> line in Instance.powerlines)
+                {
+                    foreach (Vector3 point in line.Value.points)
+                    {
+                        if ((point - player.transform.position).magnitude < lowMag)
+                        {
+                            lowMag = (point - player.transform.position).magnitude;
+                            linechoice = line.Key;
+                            Instance.DoLog($"Current closest line(point) is {linechoice}({point})");
+                        }
+                    }
+                }
+                chosenLine = linechoice;
+                Instance.DoLog($"Setting nearest powerline to {chosenLine}");
+                FindNearestPoint();
+            }
+
+            public string SetNearestPoint(int choice = 0)
+            {
+                if (choice == 0)
+                {
+                    choice = FindNearestPoint();
+                }
+
+                chosenLine = Instance.idToLine[choice];
+                Instance.DoLog($"Setting nearest powerline to {chosenLine}({choice})");
+                return chosenLine;
             }
 
             private int FindNearestPoint(int index=0)
@@ -409,7 +450,7 @@ namespace Oxide.Plugins
                     lcount = 20;
                 }
 
-                Instance.DoLog($"Building {lcount.ToString()} ladders...");
+                Instance.DoLog($"Building {lcount} ladders...");
                 for (int i = 0; i < lcount; i++)
                 {
                     GameObject go = SpawnPrefab(prefabladder, spawnPos, spawnRot, true);
@@ -507,8 +548,8 @@ namespace Oxide.Plugins
                 segment = len / count;
                 floors = new List<BuildingBlock>();
 
-                Instance.Puts($"Need to build {count.ToString()} floors from {start.ToString()} to {end.ToString()} in {segment.ToString()}m segments");
-                //Instance.Puts($"Direction = {direction.ToString()}");
+                Instance.DoLog($"Need to build {count} floors from {start} to {end} in {segment}m segments");
+                //Instance.DoLog($"Direction = {direction.ToString()}");
                 SpawnPlatform();
             }
 
@@ -524,6 +565,7 @@ namespace Oxide.Plugins
 
             private void SpawnPlatform()
             {
+                List<Connection> connections = Net.sv.connections.Where(con => con.connected && con.isAuthenticated && con.player is BasePlayer && con.player != player).ToList();
                 //Vector3 pos = start + (direction * 0.844673f);
                 Vector3 pos = start + (direction * 1.7f);
                 for (int i = 0; i < count; i++)
@@ -545,9 +587,10 @@ namespace Oxide.Plugins
                         prefab = triprefab;
                         pwidth = 1.5f;
                     }
-                    Instance.Puts($"Spawning floor {i.ToString()} at {pos.ToString()}");
+                    Instance.DoLog($"Spawning floor {i} at {pos}");
                     BaseEntity be = SpawnPart(prefab, null, pos, rotation, 0, counterrot);
                     BuildingBlock block = be as BuildingBlock;
+                    block?.OnNetworkSubscribersLeave(connections);
                     floors.Add(block);
 
                     //pos += direction * 1.689346f;
@@ -741,7 +784,7 @@ namespace Oxide.Plugins
                 Vector3 top = coll.transform.TransformPoint(Vector3.up);
                 Vector3 bot = coll.transform.TransformPoint(-Vector3.up);
 
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, center, $"<size=20>CENTER {center.ToString()}</size>");
+                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, center, $"<size=20>CENTER {center}</size>");
                 player.SendConsoleCommand("ddraw.text", 1, Color.yellow, front, $"<size=20>FRONT</size>");
                 player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, front, 0.25f);
                 player.SendConsoleCommand("ddraw.text", 1, Color.yellow, back, $"<size=20>BACK</size>");
@@ -755,7 +798,7 @@ namespace Oxide.Plugins
                 player.SendConsoleCommand("ddraw.text", 1, Color.yellow, bot, $"<size=20>BOTTOM</size>");
                 player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, bot, 0.25f);
 
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.position, $"<size=20>RB CTR {rigidbody.transform.position.ToString()}</size>");
+                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.position, $"<size=20>RB CTR {rigidbody.transform.position}</size>");
                 player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(Vector3.forward), $"<size=20>RB FRT</size>");
                 player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(-Vector3.forward), $"<size=20>RB BAK</size>");
                 player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(Vector3.right), $"<size=20>RB LT</size>");
