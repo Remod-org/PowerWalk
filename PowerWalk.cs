@@ -7,11 +7,12 @@ using System;
 //using System.Reflection;
 using Rust;
 using Network;
+using Oxide.Plugins.BGradeExt;
 
 namespace Oxide.Plugins
 {
-    [Info("PowerWalk", "RFC1920", "1.0.2")]
-    [Description("Give collider to power lines to allow landing, etc.")]
+    [Info("PowerWalk", "RFC1920", "1.0.3")]
+    [Description("Walk the power lines like a boss.")]
     internal class PowerWalk : CovalencePlugin
     {
         public Dictionary<string, PowerLine> powerlines = new Dictionary<string, PowerLine>();
@@ -20,6 +21,7 @@ namespace Oxide.Plugins
         private ConfigData configData;
         public static PowerWalk Instance;
         private const string permUse = "powerwalk.use";
+        private const string permTP = "powerwalk.tp";
 
         public class PowerLine
         {
@@ -67,6 +69,7 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             permission.RegisterPermission(permUse, this);
+            permission.RegisterPermission(permTP, this);
             LoadConfigVariables();
             FindPowerLines();
 
@@ -77,11 +80,13 @@ namespace Oxide.Plugins
         private void WalkLines(IPlayer iplayer, string command, string[] args)
         {
             BasePlayer player = iplayer.Object as BasePlayer;
+            if (!player.HasPermission(permUse)) return;
 
             string chosenLine = "";
             if (args.Length > 0) chosenLine = $"Powerline {args[0]}";
             if (args.Length == 2 && powerlines.ContainsKey(chosenLine) && args[1] == "tp")
             {
+                if (!player.HasPermission(permTP)) return;
                 GenericPosition pos = ToGeneric(powerlines[chosenLine].points[0]);
                 Message(iplayer, "TeleportingTo", chosenLine, "start", "5");
                 pos.Y = TerrainMeta.HeightMap.GetHeight(powerlines[chosenLine].points[0]);
@@ -227,6 +232,7 @@ namespace Oxide.Plugins
             public float ShowAllTextTime;
             public float ShowOneTextTime;
             public bool ShowOneAllPoints;
+            public bool ShowPlatformsToAll;
             public bool debug;
         }
         #endregion
@@ -590,7 +596,10 @@ namespace Oxide.Plugins
                     Instance.DoLog($"Spawning floor {i} at {pos}");
                     BaseEntity be = SpawnPart(prefab, null, pos, rotation, 0, counterrot);
                     BuildingBlock block = be as BuildingBlock;
-                    block?.OnNetworkSubscribersLeave(connections);
+                    if (!Instance.configData.Options.ShowPlatformsToAll)
+                    {
+                        block?.OnNetworkSubscribersLeave(connections);
+                    }
                     floors.Add(block);
 
                     //pos += direction * 1.689346f;
