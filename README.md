@@ -35,7 +35,7 @@ By default, the platforms should not be visible to other players.
   "Version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 1
+    "Patch": 4
   }
 }
 ```
