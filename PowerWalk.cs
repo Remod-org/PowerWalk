@@ -4,20 +4,16 @@ using System.Linq;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core;
 using System;
-//using System.Reflection;
-using Rust;
 using Network;
-using Oxide.Plugins.BGradeExt;
 
 namespace Oxide.Plugins
 {
-    [Info("PowerWalk", "RFC1920", "1.0.3")]
+    [Info("PowerWalk", "RFC1920", "1.0.4")]
     [Description("Walk the power lines like a boss.")]
     internal class PowerWalk : CovalencePlugin
     {
         public Dictionary<string, PowerLine> powerlines = new Dictionary<string, PowerLine>();
         public Dictionary<int, string> idToLine = new Dictionary<int, string>();
-        //private readonly FieldInfo meshLookupField = typeof(MeshColliderLookup).GetField("meshLookup", BindingFlags.Instance | BindingFlags.NonPublic);
         private ConfigData configData;
         public static PowerWalk Instance;
         private const string permUse = "powerwalk.use";
@@ -64,8 +60,6 @@ namespace Oxide.Plugins
             }, this);
         }
 
-        private bool HasPerm(IPlayer player) => player.IsAdmin || permission.UserHasPermission(player.Id, permUse);
-
         private void OnServerInitialized()
         {
             permission.RegisterPermission(permUse, this);
@@ -80,13 +74,13 @@ namespace Oxide.Plugins
         private void WalkLines(IPlayer iplayer, string command, string[] args)
         {
             BasePlayer player = iplayer.Object as BasePlayer;
-            if (!player.HasPermission(permUse)) return;
+            if (!permission.UserHasPermission(player.UserIDString, permUse)) return;
 
             string chosenLine = "";
             if (args.Length > 0) chosenLine = $"Powerline {args[0]}";
             if (args.Length == 2 && powerlines.ContainsKey(chosenLine) && args[1] == "tp")
             {
-                if (!player.HasPermission(permTP)) return;
+                if (!permission.UserHasPermission(player.UserIDString, permTP)) return;
                 GenericPosition pos = ToGeneric(powerlines[chosenLine].points[0]);
                 Message(iplayer, "TeleportingTo", chosenLine, "start", "5");
                 pos.Y = TerrainMeta.HeightMap.GetHeight(powerlines[chosenLine].points[0]);
@@ -146,7 +140,6 @@ namespace Oxide.Plugins
 
         private void SaveData()
         {
-            // Save the data file as we add/remove minicopters.
             Interface.Oxide.DataFileSystem.WriteObject(Name, powerlines);
         }
 
@@ -160,7 +153,6 @@ namespace Oxide.Plugins
             int x = 0;
             foreach (PowerLineWire pwire in UnityEngine.Object.FindObjectsOfType<PowerLineWire>())
             {
-                //DoLog("Found a powerlinewire");
                 string nom = $"Powerline {x}";
                 powerlines.Add(nom, new PowerLine());
                 foreach (Transform pole in pwire.poles)
@@ -322,19 +314,19 @@ namespace Oxide.Plugins
                 FindNearestPoint();
             }
 
-            public string SetNearestPoint(int choice = 0)
-            {
-                if (choice == 0)
-                {
-                    choice = FindNearestPoint();
-                }
+            //public string SetNearestPoint(int choice = 0)
+            //{
+            //    if (choice == 0)
+            //    {
+            //        choice = FindNearestPoint();
+            //    }
 
-                chosenLine = Instance.idToLine[choice];
-                Instance.DoLog($"Setting nearest powerline to {chosenLine}({choice})");
-                return chosenLine;
-            }
+            //    chosenLine = Instance.idToLine[choice];
+            //    Instance.DoLog($"Setting nearest powerline to {chosenLine}({choice})");
+            //    return chosenLine;
+            //}
 
-            private int FindNearestPoint(int index=0)
+            private int FindNearestPoint()
             {
                 float lowMag = 99999;
                 int rtrn = -1;
@@ -351,7 +343,7 @@ namespace Oxide.Plugins
                 return rtrn;
             }
 
-            private int FindNearestSpanStart(int index=0)
+            private int FindNearestSpanStart()
             {
                 float lowMag = 99999;
                 int rtrn = -1;
@@ -368,7 +360,7 @@ namespace Oxide.Plugins
                 return rtrn;
             }
 
-            private int FindNearestSpanEnd(int index=0)
+            private int FindNearestSpanEnd()
             {
                 float lowMag = 99999;
                 int rtrn = -1;
@@ -424,27 +416,27 @@ namespace Oxide.Plugins
                 pp2.player = player;
             }
 
-            private void OnCollisionEnter(Collision col)
-            {
-                Instance.DoLog($"PowerWalker Collision Enter: {col.gameObject.name}");
-            }
+            //private void OnCollisionEnter(Collision col)
+            //{
+            //    Instance.DoLog($"PowerWalker Collision Enter: {col.gameObject.name}");
+            //}
 
-            private void OnCollisionExit(Collision col)
-            {
-                Instance.DoLog($"PowerWalker Collision Exit: {col.gameObject.name}");
-            }
+            //private void OnCollisionExit(Collision col)
+            //{
+            //    Instance.DoLog($"PowerWalker Collision Exit: {col.gameObject.name}");
+            //}
 
-            private void OnTriggerEnter(Collider col)
-            {
-                Instance.DoLog($"PowerWalker Trigger Enter: {col.gameObject.name}");
-            }
+            //private void OnTriggerEnter(Collider col)
+            //{
+            //    Instance.DoLog($"PowerWalker Trigger Enter: {col.gameObject.name}");
+            //}
 
-            private void OnTriggerExit(Collider col)
-            {
-                Instance.DoLog($"PowerWalker Trigger Exit: {col.gameObject.name}");
-            }
+            //private void OnTriggerExit(Collider col)
+            //{
+            //    Instance.DoLog($"PowerWalker Trigger Exit: {col.gameObject.name}");
+            //}
 
-            private void SpawnLadders(bool tall = false)
+            private void SpawnLadders()
             {
                 int start = FindNearestSpanStart();
                 spawnRot = spans[start].start.rotation * Quaternion.Euler(0, 0, 0);
@@ -467,6 +459,11 @@ namespace Oxide.Plugins
 
                     ladders.Add(ladder);
                     spawnPos += new Vector3(0, 3, 0);
+                    if (i == lcount - 2)
+                    {
+                        // Make the last ladder just a bit shorter
+                        spawnPos += new Vector3(0, -2, 0);
+                    }
                 }
             }
 
@@ -571,7 +568,7 @@ namespace Oxide.Plugins
 
             private void SpawnPlatform()
             {
-                List<Connection> connections = Net.sv.connections.Where(con => con.connected && con.isAuthenticated && con.player is BasePlayer && con.player != player).ToList();
+                List<Connection> connections = Net.sv.connections.Where(c => c.connected && c.isAuthenticated && c.player is BasePlayer && c.player != player).ToList();
                 //Vector3 pos = start + (direction * 0.844673f);
                 Vector3 pos = start + (direction * 1.7f);
                 for (int i = 0; i < count; i++)
@@ -655,169 +652,6 @@ namespace Oxide.Plugins
                     Instance.DoLog($"Found connection authstatus:{c.authStatus} connected:{c.connected}");
                 }
                 entity.OnNetworkSubscribersLeave(connections);
-            }
-        }
-
-        public class PowerPlatformOld : MonoBehaviour
-        {
-            public BoxCollider coll;
-            public Rigidbody rigidbody;
-            public BasePlayer player;
-
-            public void Setup(Vector3 pos, Quaternion rot, Vector3 size)
-            {
-                gameObject.name = "PowerlinePlatform";
-                gameObject.layer = (int)Layer.Deployed;
-                gameObject.transform.position = pos;
-                gameObject.transform.rotation = rot;
-                gameObject.transform.localScale = size;
-
-                Instance.DoLog("Adding rigidbody");
-                rigidbody = gameObject.AddComponent<Rigidbody>();
-                //rigidbody.MovePosition(gameObject.transform.position);
-                //rigidbody.drag = 1f;
-                //rigidbody.maxAngularVelocity = 7;
-                rigidbody.mass = 1000;
-                //rigidbody.centerOfMass = gameObject.transform.position;
-                //rigidbody.AddForce(Vector3.up, ForceMode.Acceleration);
-                rigidbody.useGravity = false;
-                rigidbody.isKinematic = false; // if false and gravity true, it falls, so i know it's there...
-                rigidbody.detectCollisions = true;
-                rigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
-                rigidbody.constraints = RigidbodyConstraints.FreezePosition | RigidbodyConstraints.FreezeRotation;// X | RigidbodyConstraints.FreezeRotationY;
-                //rigidbody.constraints = RigidbodyConstraints.FreezePosition;// & RigidbodyConstraints.FreezeRotation;// X & RigidbodyConstraints.FreezeRotationZ;
-                //rigidbody.constraints = RigidbodyConstraints.FreezeRotation;// & RigidbodyConstraints.FreezeRotation;// X & RigidbodyConstraints.FreezeRotationZ;
-                //rigidbody.freezeRotation = true;
-                rigidbody.SetDensity(10);
-                rigidbody.transform.localScale = size;
-                //rigidbody.gameObject.SetActive(true);
-                //rigidbody.WakeUp();
-
-                Instance.DoLog("Adding box collider");
-                coll = gameObject.AddComponent<BoxCollider>();
-                //coll.transform.localPosition = gameObject.transform.position;
-                //coll.center = gameObject.transform.position;
-                coll.size = gameObject.transform.localScale;
-                coll.isTrigger = false;
-                coll.IsOnLayer(0);
-                coll.material = new PhysicMaterial()
-                {
-                    bounciness = 1,
-                    dynamicFriction = 5,
-                    frictionCombine = PhysicMaterialCombine.Maximum
-                };
-                coll.
-                //coll.IsOnLayer((int)Layer.Reserved1);
-                //coll.IsOnLayer((int)Layer.Transparent);
-                //coll.enabled = true;
-                //coll.gameObject.SetActive(true);
-
-                gameObject.SetActive(true);
-            }
-
-            private void OnDestroy()
-            {
-                Destroy(coll);
-                //Destroy(rigidbody);
-            }
-
-            public void OnCollisionEnter(Collision collision)
-            {
-                GameObject go = collision.gameObject;
-                if (go.GetComponent<BasePlayer>())
-                {
-                    Instance.DoLog($"PowerlinePlatform Collision Enter: {go.name} {go.GetInstanceID()} on layer {collision.collider.gameObject.layer}");
-                    return;
-                }
-                Physics.IgnoreCollision(collision.collider, coll);
-            }
-
-            public void OnCollisionExit(Collision collision)
-            {
-                GameObject go = collision.gameObject;
-                if (go.GetComponent<BasePlayer>())
-                {
-                    Instance.DoLog($"PowerlinePlatform Collision Exit: {go.name} {go.GetInstanceID()}");
-                    return;
-                }
-                Physics.IgnoreCollision(collision.collider, coll);
-            }
-
-            public void OnTriggerEnter(Collider coll)
-            {
-                GameObject go = coll.gameObject;
-                //Instance.DoLog($"PowerlineCollider Trigger Exit: {go.name} {go.GetType().Name}");
-
-                if (go.GetComponent<BasePlayer>())
-                {
-                    Instance.DoLog($"PowerlinePlatform Exit: {go.GetComponent<BasePlayer>().displayName}");
-                }
-            }
-
-            public void OnTriggerExit(Collider coll)
-            {
-                GameObject go = coll.gameObject;
-                //Instance.DoLog($"PowerlineCollider Trigger Enter: {go.name} {go.GetType().Name}");
-                if (go.GetComponent<BasePlayer>())
-                {
-                    Instance.DoLog($"PowerlinePlatform Enter: {go.GetComponent<BasePlayer>().displayName}");
-                }
-            }
-
-            public void FixedUpdate()
-            {
-                if (Instance.configData.Options.debug)
-                {
-                    Debug(player);
-                }
-            }
-
-            public void Debug(BasePlayer player)
-            {
-                if (player == null) return;
-                //BoxCollider coll = gameObject.GetComponent<BoxCollider>();
-                //Rigidbody rigidbody = gameObject.GetComponent<Rigidbody>();
-
-                //Instance.DoLog($"gameObject size {gameObject.transform.localScale.ToString()}");
-                //Instance.DoLog($"Collider center {coll.center.ToString()}");
-                //Instance.DoLog($"Collider size {coll.size.ToString()}");
-                //Instance.DoLog($"Collider bounds {coll.bounds.ToString()}");
-                //Instance.DoLog($"Collider isTrigger {coll.isTrigger.ToString()}");
-                ////Instance.DoLog($"New collider instanceid: {coll.gameObject.GetInstanceID()}");
-
-                Vector3 center = coll.transform.position;
-                Vector3 front = coll.transform.TransformPoint(Vector3.forward);// * (spans[st1].WireLength / 2));
-                Vector3 back = coll.transform.TransformPoint(-Vector3.forward);// * -(spans[st1].WireLength / 2));
-                Vector3 left = coll.transform.TransformPoint(-Vector3.right);
-                Vector3 right = coll.transform.TransformPoint(Vector3.right);
-                Vector3 top = coll.transform.TransformPoint(Vector3.up);
-                Vector3 bot = coll.transform.TransformPoint(-Vector3.up);
-
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, center, $"<size=20>CENTER {center}</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, front, $"<size=20>FRONT</size>");
-                player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, front, 0.25f);
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, back, $"<size=20>BACK</size>");
-                player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, back, 0.25f);
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, left, $"<size=20>LEFT</size>");
-                player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, left, 0.25f);
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, right, $"<size=20>RIGHT</size>");
-                player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, right, 0.25f);
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, top, $"<size=20>TOP</size>");
-                player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, top, 0.25f);
-                player.SendConsoleCommand("ddraw.text", 1, Color.yellow, bot, $"<size=20>BOTTOM</size>");
-                player.SendConsoleCommand("ddraw.arrow", 1, Color.white, center, bot, 0.25f);
-
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.position, $"<size=20>RB CTR {rigidbody.transform.position}</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(Vector3.forward), $"<size=20>RB FRT</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(-Vector3.forward), $"<size=20>RB BAK</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(Vector3.right), $"<size=20>RB LT</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(-Vector3.right), $"<size=20>RB RT</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(Vector3.up), $"<size=20>RB TOP</size>");
-                player.SendConsoleCommand("ddraw.text", 1, Color.red, rigidbody.transform.TransformPoint(-Vector3.up), $"<size=20>RB BOT</size>");
-
-                //Instance.DoLog($"Rigidbody.center: {rigidbody.transform.position}");
-                //Instance.DoLog($"Rigidbody.rotation: {rigidbody.transform.rotation}");
-                //Instance.DoLog($"Rigidbody.centerOfMass: {rigidbody.centerOfMass}");
             }
         }
         #endregion Classes
