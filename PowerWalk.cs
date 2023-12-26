@@ -5,10 +5,11 @@ using Oxide.Core.Libraries.Covalence;
 using Oxide.Core;
 using System;
 using Network;
+using VLB;
 
 namespace Oxide.Plugins
 {
-    [Info("PowerWalk", "RFC1920", "1.0.4")]
+    [Info("PowerWalk", "RFC1920", "1.0.5")]
     [Description("Walk the power lines like a boss.")]
     internal class PowerWalk : CovalencePlugin
     {
@@ -98,7 +99,7 @@ namespace Oxide.Plugins
             else if (args.Length == 1 && powerlines.ContainsKey(chosenLine))
             {
                 DoLog("Creating object and setting powerline");
-                PowerWalker pw = player.gameObject.AddComponent<PowerWalker>();
+                PowerWalker pw = player.gameObject.GetOrAddComponent<PowerWalker>();
                 pw.chosenLine = chosenLine;
             }
             else if (args.Length == 1 && args[0] == "show")
@@ -119,7 +120,7 @@ namespace Oxide.Plugins
             }
             else if (args.Length == 0)
             {
-                PowerWalker pw = player.gameObject.AddComponent<PowerWalker>();
+                PowerWalker pw = player.gameObject.GetOrAddComponent<PowerWalker>();
                 pw.SetNearestLine();
             }
         }
