@@ -5,6 +5,18 @@ Actually, we spawn ladders up the nearest pole and platforms (floor/triangle) to
 
 By default, the platforms should not be visible to other players.
 
+This has been under development for a couple of years and kept private until December 2023.
+
+The simplest way to use this:
+  1. Assign `powerwalk.use` permission to player or group.
+  2. Walk nearby any power line.
+  3. Enter `/pwalk` in chat.
+  4. Climb the set of ladders up the nearby pole.
+  5. Jump onto the platform.
+  6. Walk to the next pole on the platform - you may need to jump onto the next set of ladders and/or to the next platform.
+  7. When done, jump off and die, or climb down the available set of ladders to the ground.
+  8. Enter `pwalk off` in chat to disable.
+
 ## Commands
 
   -- `/pwalk show` -- Show the location of all powerlines
@@ -35,7 +47,7 @@ By default, the platforms should not be visible to other players.
   "Version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 1
+    "Patch": 4
   }
 }
 ```
