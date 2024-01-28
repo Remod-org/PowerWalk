@@ -29,7 +29,7 @@ using VLB;
 
 namespace Oxide.Plugins
 {
-    [Info("PowerWalk", "RFC1920", "1.0.5")]
+    [Info("PowerWalk", "RFC1920", "1.0.6")]
     [Description("Walk the power lines like a boss.")]
     internal class PowerWalk : CovalencePlugin
     {
@@ -56,7 +56,7 @@ namespace Oxide.Plugins
         {
             if (configData.Options.debug)
             {
-                Interface.Oxide.LogInfo(message);
+                Interface.GetMod().LogInfo(message);
             }
         }
 
@@ -161,12 +161,12 @@ namespace Oxide.Plugins
 
         private void SaveData()
         {
-            Interface.Oxide.DataFileSystem.WriteObject(Name, powerlines);
+            Interface.GetMod().DataFileSystem.WriteObject(Name, powerlines);
         }
 
         private void LoadData()
         {
-            powerlines = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, PowerLine>>(Name);
+            powerlines = Interface.GetMod().DataFileSystem.ReadObject<Dictionary<string, PowerLine>>(Name);
         }
 
         private void FindPowerLines()
@@ -670,7 +670,7 @@ namespace Oxide.Plugins
                 List<Connection> connections = Net.sv.connections.Where(con => con.connected && con.isAuthenticated && con.player is BasePlayer).ToList();
                 foreach (Connection c in connections)
                 {
-                    Instance.DoLog($"Found connection authstatus:{c.authStatus} connected:{c.connected}");
+                    Instance.DoLog($"Found connection authstatus:{c.authStatusEAC} connected:{c.connected}");
                 }
                 entity.OnNetworkSubscribersLeave(connections);
             }
